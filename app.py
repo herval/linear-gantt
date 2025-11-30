@@ -93,59 +93,6 @@ def main():
     # Initialize Linear client
     client = LinearClient()
 
-    # Sidebar
-    with st.sidebar:
-        st.header("⚙️ Configuration")
-
-        # Refresh button
-        if st.button("🔄 Refresh Data", use_container_width=True):
-            clear_cache()
-            st.rerun()
-
-        st.divider()
-
-        # Filters
-        st.subheader("Filters")
-
-        # Date range filter
-        use_date_filter = st.checkbox("Filter by date range", value=False)
-        date_start = None
-        date_end = None
-
-        if use_date_filter:
-            col1, col2 = st.columns(2)
-            with col1:
-                date_start = st.date_input(
-                    "Start date",
-                    value=date.today() - timedelta(days=90)
-                )
-            with col2:
-                date_end = st.date_input(
-                    "End date",
-                    value=date.today() + timedelta(days=90)
-                )
-
-        st.divider()
-
-        # Visualization options
-        st.subheader("Visualization")
-
-        color_by = st.selectbox(
-            "Color by",
-            options=["status", "priority"],
-            index=0
-        )
-
-        show_progress = st.checkbox("Show progress bars", value=True)
-
-        chart_height = st.slider(
-            "Chart height",
-            min_value=400,
-            max_value=1200,
-            value=600,
-            step=50
-        )
-
     # Main content
     try:
         # Fetch projects
@@ -160,24 +107,111 @@ def main():
         # Debug: Show how many projects have effective dates
         st.info(f"Found {len(projects)} projects with valid timeline data")
 
+        # Sidebar with filters - create after we have projects
+        with st.sidebar:
+            st.header("⚙️ Configuration")
+
+            # Refresh button
+            if st.button("🔄 Refresh Data", use_container_width=True):
+                clear_cache()
+                st.rerun()
+
+            st.divider()
+
+            # Filters
+            st.subheader("Filters")
+
+            # Team filter - get all unique teams from projects
+            all_teams = set()
+            for project in projects:
+                all_teams.update(project.team_names)
+
+            all_teams = sorted(list(all_teams))
+
+            selected_teams = []
+            if all_teams:
+                st.markdown("**Filter by Team:**")
+
+                # Add "All Teams" checkbox
+                select_all = st.checkbox("All Teams", value=True)
+
+                if not select_all:
+                    for team in all_teams:
+                        if st.checkbox(team, value=False, key=f"team_{team}"):
+                            selected_teams.append(team)
+                else:
+                    selected_teams = all_teams
+            else:
+                selected_teams = []
+
+            st.divider()
+
+            # Date range filter
+            use_date_filter = st.checkbox("Filter by date range", value=False)
+            date_start = None
+            date_end = None
+
+            if use_date_filter:
+                col1, col2 = st.columns(2)
+                with col1:
+                    date_start = st.date_input(
+                        "Start date",
+                        value=date.today() - timedelta(days=90)
+                    )
+                with col2:
+                    date_end = st.date_input(
+                        "End date",
+                        value=date.today() + timedelta(days=90)
+                    )
+
+            st.divider()
+
+            # Visualization options
+            st.subheader("Visualization")
+
+            color_by = st.selectbox(
+                "Color by",
+                options=["status", "priority"],
+                index=0
+            )
+
+            show_progress = st.checkbox("Show progress bars", value=True)
+
+            chart_height = st.slider(
+                "Chart height",
+                min_value=400,
+                max_value=1600,
+                value=1200,
+                step=50
+            )
+
+        # Filter projects by team
+        if selected_teams and selected_teams != all_teams:
+            filtered_projects = [
+                p for p in projects
+                if any(team in selected_teams for team in p.team_names)
+            ]
+        else:
+            filtered_projects = projects
+
         # Show stats
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("Total Projects", len(projects))
+            st.metric("Total Projects", len(filtered_projects))
         with col2:
-            total_issues = sum(p.issue_count for p in projects)
+            total_issues = sum(p.issue_count for p in filtered_projects)
             st.metric("Total Issues", total_issues)
         with col3:
-            completed_issues = sum(p.completed_issue_count for p in projects)
+            completed_issues = sum(p.completed_issue_count for p in filtered_projects)
             st.metric("Completed Issues", completed_issues)
         with col4:
-            avg_progress = sum(p.progress for p in projects) / len(projects) if projects else 0
+            avg_progress = sum(p.progress for p in filtered_projects) / len(filtered_projects) if filtered_projects else 0
             st.metric("Avg Progress", f"{avg_progress:.1f}%")
 
         st.divider()
 
         # Convert projects to Gantt format
-        gantt_data = [p.to_gantt_dict() for p in projects]
+        gantt_data = [p.to_gantt_dict() for p in filtered_projects]
 
         # Apply date filter if enabled
         if use_date_filter and date_start and date_end:
@@ -202,7 +236,7 @@ def main():
 
             # Show project details
             with st.expander("📋 Project Details"):
-                for project in projects:
+                for project in filtered_projects:
                     if use_date_filter:
                         # Check if project is in filtered list
                         if not any(g["id"] == project.id for g in gantt_data):

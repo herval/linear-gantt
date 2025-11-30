@@ -24,6 +24,8 @@ class Project:
     lead_id: Optional[str] = None
     lead_name: Optional[str] = None
     member_ids: List[str] = field(default_factory=list)
+    team_ids: List[str] = field(default_factory=list)
+    team_names: List[str] = field(default_factory=list)
     issue_count: int = 0
     completed_issue_count: int = 0
     dependencies: List[str] = field(default_factory=list)  # Project IDs this blocks
@@ -73,6 +75,11 @@ class Project:
         members = data.get("members", {}).get("nodes", [])
         member_ids = [m["id"] for m in members if "id" in m]
 
+        # Extract team IDs and names
+        teams = data.get("teams", {}).get("nodes", [])
+        team_ids = [t["id"] for t in teams if "id" in t]
+        team_names = [t["name"] for t in teams if "name" in t]
+
         # Calculate progress from issues if provided
         progress = data.get("progress", 0.0)
         issue_count = 0
@@ -99,6 +106,8 @@ class Project:
             lead_id=lead_id,
             lead_name=lead_name,
             member_ids=member_ids,
+            team_ids=team_ids,
+            team_names=team_names,
             issue_count=issue_count,
             completed_issue_count=completed_issue_count,
             _issues_data=issues or []

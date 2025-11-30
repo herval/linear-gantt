@@ -32,6 +32,13 @@ query Projects($after: String) {
                     name
                 }
             }
+            teams {
+                nodes {
+                    id
+                    name
+                    key
+                }
+            }
         }
     }
 }

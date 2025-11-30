@@ -181,13 +181,20 @@ def main():
 
             show_progress = st.checkbox("Show progress bars", value=True)
 
-            chart_height = st.slider(
-                "Chart height",
-                min_value=400,
-                max_value=1600,
-                value=1200,
-                step=50
-            )
+            # Dynamic height based on number of projects
+            use_dynamic_height = st.checkbox("Auto-adjust height", value=True)
+
+            if use_dynamic_height:
+                # Will be calculated after filtering
+                chart_height = None
+            else:
+                chart_height = st.slider(
+                    "Chart height",
+                    min_value=400,
+                    max_value=1600,
+                    value=1200,
+                    step=50
+                )
 
         # Filter projects by team
         if selected_teams and selected_teams != all_teams:
@@ -228,6 +235,13 @@ def main():
             with st.expander("🔍 Debug: Project Data"):
                 for item in gantt_data:
                     st.write(f"**{item['name']}**: {item.get('start')} → {item.get('end')}")
+
+            # Calculate dynamic height if enabled
+            if chart_height is None:
+                # Calculate: 80px per project, minimum 400px, maximum 1600px
+                num_projects = len(gantt_data)
+                calculated_height = max(400, min(num_projects * 80, 1600))
+                chart_height = calculated_height
 
             # Create and display Gantt chart
             fig = create_gantt_chart(

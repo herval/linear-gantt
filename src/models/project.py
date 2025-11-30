@@ -181,6 +181,84 @@ class Project:
 
         return oldest_date
 
+    def _calculate_velocity_based_end_date(self) -> Optional[date]:
+        """
+        Calculate end date based on velocity of completed issues
+
+        Logic:
+        1. Find the time span from earliest start to latest completion of completed issues
+        2. Calculate velocity (completed issues per day)
+        3. Estimate remaining time based on open issues
+        4. Return latest completion date + estimated remaining time
+
+        Returns:
+            date: Estimated end date or None if not enough data
+        """
+        if not self._issues_data or self.completed_issue_count == 0:
+            return None
+
+        # Find completed issues and their dates
+        earliest_start = None
+        latest_completion = None
+
+        for issue in self._issues_data:
+            # Only consider completed issues
+            if issue.get("state", {}).get("type") != "completed":
+                continue
+
+            # Get start date (startedAt or createdAt)
+            start_date = None
+            for date_field in ["startedAt", "createdAt"]:
+                if issue.get(date_field):
+                    try:
+                        start_date = datetime.fromisoformat(issue[date_field].replace("Z", "+00:00")).date()
+                        break
+                    except (ValueError, TypeError):
+                        continue
+
+            # Get completion date
+            completion_date = None
+            if issue.get("completedAt"):
+                try:
+                    completion_date = datetime.fromisoformat(issue["completedAt"].replace("Z", "+00:00")).date()
+                except (ValueError, TypeError):
+                    pass
+
+            # Track earliest start and latest completion
+            if start_date:
+                if earliest_start is None or start_date < earliest_start:
+                    earliest_start = start_date
+
+            if completion_date:
+                if latest_completion is None or completion_date > latest_completion:
+                    latest_completion = completion_date
+
+        # Need both dates to calculate velocity
+        if not earliest_start or not latest_completion:
+            return None
+
+        # Calculate time span in days
+        time_span = (latest_completion - earliest_start).days
+        if time_span <= 0:
+            time_span = 1  # Avoid division by zero, assume at least 1 day
+
+        # Calculate velocity (issues per day)
+        velocity = self.completed_issue_count / time_span
+
+        # Calculate remaining issues
+        remaining_issues = self.issue_count - self.completed_issue_count
+        if remaining_issues <= 0:
+            # All issues completed, use latest completion date
+            return latest_completion
+
+        # Estimate remaining days
+        estimated_remaining_days = remaining_issues / velocity if velocity > 0 else 0
+
+        # Calculate end date from latest completion date
+        estimated_end_date = latest_completion + timedelta(days=estimated_remaining_days)
+
+        return estimated_end_date
+
     def get_effective_start_date(self) -> Optional[date]:
         """
         Calculate effective start date based on project state and issues
@@ -218,6 +296,8 @@ class Project:
 
         Logic:
         - If project has a target date, use it
+        - For in-progress projects without target: use velocity-based calculation
+          (time to complete finished tasks / finished count * remaining count)
         - Otherwise, use effective start date + 6 months
         - If no start date available, return None
 
@@ -228,7 +308,14 @@ class Project:
         if self.target_date:
             return self.target_date
 
-        # Otherwise, calculate from effective start date
+        # For in-progress projects, try velocity-based calculation
+        state_lower = self.state.lower()
+        if state_lower in ["started", "in progress", "active"]:
+            velocity_end_date = self._calculate_velocity_based_end_date()
+            if velocity_end_date:
+                return velocity_end_date
+
+        # Fallback: calculate from effective start date + 6 months
         start = self.get_effective_start_date()
         if start:
             # Add 6 months (approximately 180 days)

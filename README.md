@@ -10,7 +10,10 @@ A Streamlit-based web application that integrates with the Linear API to fetch p
 - 📈 Project progress tracking
 - 🔗 Dependency visualization
 - 🎯 Multiple grouping and filtering options
-- 📅 Automatically filters to show only projects with defined start and target dates
+- 🧠 **Smart date calculation:**
+  - Planned projects: Uses project start date
+  - In Progress projects: Uses oldest started/completed issue date
+  - Missing end dates: Automatically calculates as start + 6 months
 
 ## Quick Start
 

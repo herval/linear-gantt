@@ -4,7 +4,7 @@ Project data model for Linear projects
 
 from dataclasses import dataclass, field
 from typing import Optional, List
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 
 @dataclass
@@ -28,6 +28,7 @@ class Project:
     completed_issue_count: int = 0
     dependencies: List[str] = field(default_factory=list)  # Project IDs this blocks
     blocked_by: List[str] = field(default_factory=list)  # Project IDs blocking this
+    _issues_data: List[dict] = field(default_factory=list, repr=False)  # Raw issues data for calculations
 
     @classmethod
     def from_linear_data(cls, data: dict, issues: Optional[List] = None) -> 'Project':
@@ -99,7 +100,8 @@ class Project:
             lead_name=lead_name,
             member_ids=member_ids,
             issue_count=issue_count,
-            completed_issue_count=completed_issue_count
+            completed_issue_count=completed_issue_count,
+            _issues_data=issues or []
         )
 
     def get_status(self) -> str:
@@ -142,18 +144,99 @@ class Project:
             return date.today() > self.target_date
         return False
 
+    def get_effective_start_date(self) -> Optional[date]:
+        """
+        Calculate effective start date based on project state and issues
+
+        Logic:
+        - For "Planned" projects: use project start date
+        - For "In Progress" projects: use date of oldest ticket that's done or in progress
+        - If no valid date found, return None
+
+        Returns:
+            date: Effective start date or None
+        """
+        state_lower = self.state.lower()
+
+        # For planned projects, use the project start date
+        if state_lower in ["planned", "todo"]:
+            return self.start_date
+
+        # For in-progress projects, find oldest started/completed issue
+        if state_lower in ["started", "in progress", "active"]:
+            oldest_date = None
+
+            for issue in self._issues_data:
+                # Check if issue is done or in progress
+                state_type = issue.get("state", {}).get("type", "").lower()
+                if state_type not in ["started", "completed"]:
+                    continue
+
+                # Get the relevant date (startedAt or completedAt)
+                issue_date = None
+                if issue.get("startedAt"):
+                    try:
+                        issue_date = datetime.fromisoformat(issue["startedAt"].replace("Z", "+00:00")).date()
+                    except (ValueError, TypeError):
+                        pass
+
+                if not issue_date and issue.get("completedAt"):
+                    try:
+                        issue_date = datetime.fromisoformat(issue["completedAt"].replace("Z", "+00:00")).date()
+                    except (ValueError, TypeError):
+                        pass
+
+                # Track the oldest date
+                if issue_date:
+                    if oldest_date is None or issue_date < oldest_date:
+                        oldest_date = issue_date
+
+            # Return oldest issue date if found, otherwise fall back to project start date
+            return oldest_date if oldest_date else self.start_date
+
+        # For other states, use project start date
+        return self.start_date
+
+    def get_effective_end_date(self) -> Optional[date]:
+        """
+        Calculate effective end date
+
+        Logic:
+        - If project has a target date, use it
+        - Otherwise, use effective start date + 6 months
+        - If no start date available, return None
+
+        Returns:
+            date: Effective end date or None
+        """
+        # If target date is set, use it
+        if self.target_date:
+            return self.target_date
+
+        # Otherwise, calculate from effective start date
+        start = self.get_effective_start_date()
+        if start:
+            # Add 6 months (approximately 180 days)
+            return start + timedelta(days=180)
+
+        return None
+
     def to_gantt_dict(self) -> dict:
         """
         Convert to dictionary format suitable for Gantt chart rendering
+        Uses effective dates calculated based on project state and issues
 
         Returns:
             dict: Gantt chart data
         """
+        effective_start = self.get_effective_start_date()
+        effective_end = self.get_effective_end_date()
+
         return {
             "id": self.id,
             "name": self.name,
-            "start": self.start_date.isoformat() if self.start_date else None,
-            "end": self.target_date.isoformat() if self.target_date else None,
+            "start": effective_start.isoformat() if effective_start else None,
+            "end": effective_end.isoformat() if effective_end else None,
             "progress": self.progress,
             "status": self.get_status(),
             "color": self.color,

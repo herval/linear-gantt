@@ -31,33 +31,40 @@ st.set_page_config(
 def fetch_projects_with_issues(_client: LinearClient):
     """
     Fetch all projects and their issues from Linear
-    Only includes projects with both start and target dates defined
+
+    Smart date calculation:
+    - For "Planned" projects: uses project start date
+    - For "In Progress" projects: uses oldest started/completed issue date
+    - For end date: uses target date or start + 6 months if not set
 
     Args:
         _client: Linear API client (underscore prefix tells Streamlit not to hash this)
 
     Returns:
-        List of Project objects with valid dates
+        List of Project objects
     """
     # Fetch all projects
     projects_data = _client.get_projects()
     projects = []
 
     for project_data in projects_data:
-        # Skip projects without both start and target dates
-        if not project_data.get("startDate") or not project_data.get("targetDate"):
-            continue
-
-        # Fetch issues for each project to calculate progress
+        # Fetch issues for each project to calculate progress and dates
         try:
             issues_data = _client.get_project_issues(project_data["id"])
             project = Project.from_linear_data(project_data, issues_data)
-            projects.append(project)
+
+            # Only include projects that have effective dates (can be displayed on Gantt chart)
+            if project.get_effective_start_date() and project.get_effective_end_date():
+                projects.append(project)
+
         except Exception as e:
             st.warning(f"Could not fetch issues for project {project_data['name']}: {str(e)}")
             # Create project without issues
             project = Project.from_linear_data(project_data)
-            projects.append(project)
+
+            # Only include if it has effective dates
+            if project.get_effective_start_date() and project.get_effective_end_date():
+                projects.append(project)
 
     return projects
 

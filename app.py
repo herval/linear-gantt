@@ -28,24 +28,24 @@ st.set_page_config(
 
 
 @cached_api_call()
-def fetch_projects_with_issues(client: LinearClient):
+def fetch_projects_with_issues(_client: LinearClient):
     """
     Fetch all projects and their issues from Linear
 
     Args:
-        client: Linear API client
+        _client: Linear API client (underscore prefix tells Streamlit not to hash this)
 
     Returns:
         List of Project objects
     """
     # Fetch all projects
-    projects_data = client.get_projects()
+    projects_data = _client.get_projects()
     projects = []
 
     for project_data in projects_data:
         # Fetch issues for each project to calculate progress
         try:
-            issues_data = client.get_project_issues(project_data["id"])
+            issues_data = _client.get_project_issues(project_data["id"])
             project = Project.from_linear_data(project_data, issues_data)
             projects.append(project)
         except Exception as e:

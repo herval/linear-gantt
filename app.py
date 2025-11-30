@@ -137,12 +137,13 @@ def main():
                 # Add "All Teams" checkbox
                 select_all = st.checkbox("All Teams", value=True)
 
-                if not select_all:
-                    for team in all_teams:
-                        if st.checkbox(team, value=False, key=f"team_{team}"):
-                            selected_teams.append(team)
-                else:
+                if select_all:
                     selected_teams = all_teams
+                else:
+                    # Show individual team checkboxes when "All Teams" is unchecked
+                    for team in all_teams:
+                        if st.checkbox(team, value=True, key=f"team_{team}"):
+                            selected_teams.append(team)
             else:
                 st.info("No teams found. Click 'Refresh Data' to fetch team information.")
                 selected_teams = []

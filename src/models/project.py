@@ -30,6 +30,7 @@ class Project:
     completed_issue_count: int = 0
     dependencies: List[str] = field(default_factory=list)  # Project IDs this blocks
     blocked_by: List[str] = field(default_factory=list)  # Project IDs blocking this
+    has_blocked_issues: bool = False  # Whether any issues in this project are blocked
     _issues_data: List[dict] = field(default_factory=list, repr=False)  # Raw issues data for calculations
 
     @classmethod
@@ -92,6 +93,32 @@ class Project:
             if issue_count > 0:
                 progress = (completed_issue_count / issue_count) * 100
 
+        # Process issue relations to extract project dependencies
+        dependencies = set()
+        blocked_by = set()
+        has_blocked_issues = False
+
+        if issues:
+            for issue in issues:
+                relations = issue.get("relations", {}).get("nodes", [])
+                for relation in relations:
+                    rel_type = relation.get("type")
+                    related_issue = relation.get("relatedIssue", {})
+                    related_project = related_issue.get("project", {})
+                    related_project_id = related_project.get("id")
+
+                    # Skip if related issue is in the same project
+                    if not related_project_id or related_project_id == data["id"]:
+                        continue
+
+                    # "blocks" means this issue blocks another issue
+                    if rel_type == "blocks":
+                        dependencies.add(related_project_id)
+                    # "blocked" means this issue is blocked by another issue
+                    elif rel_type == "blocked":
+                        blocked_by.add(related_project_id)
+                        has_blocked_issues = True
+
         return cls(
             id=data["id"],
             name=data["name"],
@@ -110,6 +137,9 @@ class Project:
             team_names=team_names,
             issue_count=issue_count,
             completed_issue_count=completed_issue_count,
+            dependencies=list(dependencies),
+            blocked_by=list(blocked_by),
+            has_blocked_issues=has_blocked_issues,
             _issues_data=issues or []
         )
 
@@ -345,5 +375,8 @@ class Project:
             "lead": self.lead_name,
             "is_overdue": self.is_overdue(),
             "issue_count": self.issue_count,
-            "completed_issues": self.completed_issue_count
+            "completed_issues": self.completed_issue_count,
+            "dependencies": self.dependencies,
+            "blocked_by": self.blocked_by,
+            "has_blocked_issues": self.has_blocked_issues
         }

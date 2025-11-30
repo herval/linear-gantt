@@ -63,7 +63,11 @@ def create_gantt_chart(projects: List[Dict],
             Resource=project.get("status", "todo"),
             Description=f"{project.get('issue_count', 0)} issues ({project.get('completed_issues', 0)} completed)",
             Progress=project.get("progress", 0),
-            Color=color
+            Color=color,
+            ProjectId=project.get("id"),
+            Dependencies=project.get("dependencies", []),
+            BlockedBy=project.get("blocked_by", []),
+            HasBlocked=project.get("has_blocked_issues", False)
         )
         tasks.append(task)
         print(f"Added task: {project['name']} from {project['start']} to {project['end']}")
@@ -89,12 +93,16 @@ def create_gantt_chart(projects: List[Dict],
     # Sort tasks by start date
     tasks_sorted = sorted(tasks, key=lambda x: x['Start'])
 
+    # Create a mapping of task names to their y-positions for dependency arrows
+    task_positions = {task['Task']: i for i, task in enumerate(tasks_sorted)}
+
     # Add bars for each project
     for task in tasks_sorted:
         # Parse dates as strings (Plotly will handle them)
         start_str = task['Start']
         finish_str = task['Finish']
         progress = task.get('Progress', 0)
+        has_blocked = task.get('HasBlocked', False)
 
         print(f"Adding bar for {task['Task']}: {start_str} to {finish_str}")
 
@@ -141,6 +149,27 @@ def create_gantt_chart(projects: List[Dict],
                 name=f"{task['Task']} Progress"
             ))
 
+        # Add warning marker for blocked projects
+        if has_blocked:
+            # Add a marker at the start of the project
+            fig.add_trace(go.Scatter(
+                x=[start_str],
+                y=[task['Task']],
+                mode='markers+text',
+                marker=dict(
+                    symbol='triangle-up',
+                    size=15,
+                    color='red',
+                    line=dict(color='darkred', width=1)
+                ),
+                text=['⚠'],
+                textposition='middle center',
+                textfont=dict(color='white', size=10),
+                showlegend=False,
+                hovertemplate=f"<b>⚠ Blocked Issues</b><br>This project has issues that are blocked<extra></extra>",
+                name=f"{task['Task']} Blocked"
+            ))
+
     # Update layout
     fig.update_layout(
         title="Project Timeline",
@@ -182,6 +211,41 @@ def create_gantt_chart(projects: List[Dict],
         showarrow=False,
         yshift=10
     )
+
+    # Add dependency arrows between projects
+    # Create a mapping of project IDs to task data for lookups
+    project_id_to_task = {task.get('ProjectId'): task for task in tasks}
+
+    for task in tasks:
+        dependencies = task.get('Dependencies', [])
+
+        # For each project this one blocks, draw an arrow
+        # Arrow goes from end of this project to start of the dependent project
+        for dep_project_id in dependencies:
+            if dep_project_id in project_id_to_task:
+                dep_task = project_id_to_task[dep_project_id]
+
+                # Check if both tasks are in the visible list
+                if task['Task'] in task_positions and dep_task['Task'] in task_positions:
+                    # Draw arrow from end of blocking project to start of blocked project
+                    # In Plotly: (ax, ay) = tail, (x, y) = head
+                    fig.add_annotation(
+                        x=dep_task['Start'],  # Arrow points to start of dependent project
+                        y=dep_task['Task'],
+                        ax=task['Finish'],  # Arrow starts from end of blocking project
+                        ay=task['Task'],
+                        xref='x',
+                        yref='y',
+                        axref='x',
+                        ayref='y',
+                        showarrow=True,
+                        arrowhead=2,
+                        arrowsize=1,
+                        arrowwidth=2,
+                        arrowcolor='rgba(100, 100, 100, 0.5)',
+                        standoff=5,
+                        text=''
+                    )
 
     return fig
 

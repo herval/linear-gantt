@@ -94,6 +94,19 @@ query ProjectIssues($projectId: String!, $after: String) {
                     startsAt
                     endsAt
                 }
+                relations {
+                    nodes {
+                        type
+                        relatedIssue {
+                            id
+                            title
+                            project {
+                                id
+                                name
+                            }
+                        }
+                    }
+                }
             }
         }
     }

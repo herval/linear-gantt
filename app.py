@@ -124,7 +124,9 @@ def main():
             # Team filter - get all unique teams from projects
             all_teams = set()
             for project in projects:
-                all_teams.update(project.team_names)
+                # Use getattr for backward compatibility with cached projects
+                team_names = getattr(project, 'team_names', [])
+                all_teams.update(team_names)
 
             all_teams = sorted(list(all_teams))
 
@@ -142,6 +144,7 @@ def main():
                 else:
                     selected_teams = all_teams
             else:
+                st.info("No teams found. Click 'Refresh Data' to fetch team information.")
                 selected_teams = []
 
             st.divider()
@@ -189,7 +192,7 @@ def main():
         if selected_teams and selected_teams != all_teams:
             filtered_projects = [
                 p for p in projects
-                if any(team in selected_teams for team in p.team_names)
+                if any(team in selected_teams for team in getattr(p, 'team_names', []))
             ]
         else:
             filtered_projects = projects

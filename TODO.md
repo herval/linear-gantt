@@ -1,44 +1,49 @@
 ## Development Phases
 
-### Phase 1: Foundation & MVP (Week 1-2)
+### Phase 1: Foundation & MVP (Week 1-2) ✅ COMPLETED
 
-#### Project Setup
-- [ ] Create project folder structure per spec:
-  - [ ] `config/settings.py`
-  - [ ] `src/api/` (linear_client.py, queries.py)
-  - [ ] `src/models/` (issue.py, project.py)
-  - [ ] `src/visualization/` (gantt.py, formatters.py)
-  - [ ] `src/utils/` (cache.py, auth.py, export.py)
-  - [ ] `src/ui/` (sidebar.py, filters.py, components.py)
-  - [ ] `tests/`
-- [ ] Create `requirements.txt` with all dependencies from spec
-- [ ] Create `.env.example` template with LINEAR_API_KEY and CACHE_TTL
-- [ ] Set up basic `app.py` with Streamlit skeleton
+#### Project Setup ✅
+- [x] Create project folder structure per spec:
+  - [x] `config/settings.py`
+  - [x] `src/api/` (linear_client.py, queries.py)
+  - [x] `src/models/` (issue.py, project.py)
+  - [x] `src/visualization/` (gantt.py, formatters.py)
+  - [x] `src/utils/` (cache.py, auth.py, export.py)
+  - [x] `src/ui/` (sidebar.py, filters.py, components.py)
+  - [x] `tests/`
+- [x] Create `requirements.txt` with all dependencies from spec
+- [x] Create `.env.example` template with LINEAR_API_KEY and CACHE_TTL
+- [x] Set up basic `app.py` with Streamlit skeleton
+- [x] Create `run.sh` script for easy setup and launch
+- [x] Create comprehensive test suite (38 tests, 100% passing)
 
-#### Authentication & API Client
-- [ ] Implement Linear API authentication (src/utils/auth.py)
-- [ ] Create Linear API client (src/api/linear_client.py)
-- [ ] Implement GraphQL query builder (src/api/queries.py)
-- [ ] Add environment variable loading with python-dotenv
-- [ ] Validate API key on startup
+#### Authentication & API Client ✅
+- [x] Implement Linear API authentication (src/utils/auth.py)
+- [x] Create Linear API client (src/api/linear_client.py)
+- [x] Implement GraphQL query builder (src/api/queries.py)
+- [x] Add environment variable loading with python-dotenv
+- [x] Validate API key on startup
 
-#### Data Models & Fetching
-- [ ] Create Project data model (src/models/project.py)
-  - [ ] Include: id, name, state, startDate, targetDate, progress %
-  - [ ] Support for dependencies (blocked by, blocks)
-- [ ] Create Issue data model (src/models/issue.py)
-- [ ] Implement GraphQL query to fetch all Projects
-- [ ] Calculate project % completion from issues
-- [ ] Basic error handling and loading states
+#### Data Models & Fetching ✅
+- [x] Create Project data model (src/models/project.py)
+  - [x] Include: id, name, state, startDate, targetDate, progress %
+  - [x] Support for dependencies (blocked by, blocks)
+- [x] Create Issue data model (src/models/issue.py)
+- [x] Implement GraphQL query to fetch all Projects
+- [x] Calculate project % completion from issues
+- [x] Basic error handling and loading states
 
-#### Basic Gantt Visualization
-- [ ] Build Gantt chart generator (src/visualization/gantt.py)
-- [ ] Render PROJECTS (not issues) as Gantt bars using Plotly
-- [ ] Use project completion date as end date
-- [ ] Display project % completion on bars
-- [ ] Implement status color coding (Todo: Gray, In Progress: Blue, Done: Green, Cancelled: Red)
-- [ ] Implement priority color coding (Urgent: Red, High: Orange, Medium: Yellow, Low: Green)
-- [ ] Add basic hover tooltips with project details
+#### Basic Gantt Visualization ✅
+- [x] Build Gantt chart generator (src/visualization/gantt.py)
+- [x] Render PROJECTS (not issues) as Gantt bars using Plotly
+- [x] Use project completion date as end date
+- [x] Display project % completion on bars
+- [x] Implement status color coding (Todo: Gray, In Progress: Blue, Done: Green, Cancelled: Red)
+- [x] Implement priority color coding (Urgent: Red, High: Orange, Medium: Yellow, Low: Green)
+- [x] Add basic hover tooltips with project details
+- [x] Date range filtering
+- [x] Project details view with expandable section
+- [x] Metrics dashboard (total projects, issues, completion %)
 
 ### Phase 2: Core Features & Interactions (Week 3-4)
 

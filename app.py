@@ -154,8 +154,11 @@ def main():
 
         if not projects:
             st.warning("No projects found in your Linear workspace.")
-            st.info("Create some projects in Linear to see them visualized here.")
+            st.info("Create some projects in Linear with start dates or active issues to see them visualized here.")
             st.stop()
+
+        # Debug: Show how many projects have effective dates
+        st.info(f"Found {len(projects)} projects with valid timeline data")
 
         # Show stats
         col1, col2, col3, col4 = st.columns(4)
@@ -183,6 +186,11 @@ def main():
         if not gantt_data:
             st.warning("No projects match the selected filters.")
         else:
+            # Debug: Show what data we're passing to the chart
+            with st.expander("🔍 Debug: Project Data"):
+                for item in gantt_data:
+                    st.write(f"**{item['name']}**: {item.get('start')} → {item.get('end')}")
+
             # Create and display Gantt chart
             fig = create_gantt_chart(
                 gantt_data,

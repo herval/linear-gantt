@@ -144,12 +144,40 @@ class Project:
             return date.today() > self.target_date
         return False
 
+    def _get_oldest_issue_date(self) -> Optional[date]:
+        """
+        Helper method to find the oldest date from issues
+
+        Returns:
+            date: Oldest issue date or None
+        """
+        oldest_date = None
+
+        for issue in self._issues_data:
+            issue_date = None
+
+            # Try different date fields in order of preference
+            for date_field in ["startedAt", "completedAt", "createdAt"]:
+                if issue.get(date_field):
+                    try:
+                        issue_date = datetime.fromisoformat(issue[date_field].replace("Z", "+00:00")).date()
+                        break
+                    except (ValueError, TypeError):
+                        continue
+
+            # Track the oldest date
+            if issue_date:
+                if oldest_date is None or issue_date < oldest_date:
+                    oldest_date = issue_date
+
+        return oldest_date
+
     def get_effective_start_date(self) -> Optional[date]:
         """
         Calculate effective start date based on project state and issues
 
         Logic:
-        - For "Planned" projects: use project start date
+        - For "Planned" projects: use project start date, fallback to oldest issue createdAt
         - For "In Progress" projects: use date of oldest ticket that's done or in progress
         - If no valid date found, return None
 
@@ -160,42 +188,20 @@ class Project:
 
         # For planned projects, use the project start date
         if state_lower in ["planned", "todo"]:
-            return self.start_date
+            # If we have a start date, use it
+            if self.start_date:
+                return self.start_date
 
-        # For in-progress projects, find oldest started/completed issue
+            # Otherwise, fallback to oldest issue created date
+            return self._get_oldest_issue_date()
+
+        # For in-progress projects, use oldest issue date
         if state_lower in ["started", "in progress", "active"]:
-            oldest_date = None
-
-            for issue in self._issues_data:
-                # Check if issue is done or in progress
-                state_type = issue.get("state", {}).get("type", "").lower()
-                if state_type not in ["started", "completed"]:
-                    continue
-
-                # Get the relevant date (startedAt or completedAt)
-                issue_date = None
-                if issue.get("startedAt"):
-                    try:
-                        issue_date = datetime.fromisoformat(issue["startedAt"].replace("Z", "+00:00")).date()
-                    except (ValueError, TypeError):
-                        pass
-
-                if not issue_date and issue.get("completedAt"):
-                    try:
-                        issue_date = datetime.fromisoformat(issue["completedAt"].replace("Z", "+00:00")).date()
-                    except (ValueError, TypeError):
-                        pass
-
-                # Track the oldest date
-                if issue_date:
-                    if oldest_date is None or issue_date < oldest_date:
-                        oldest_date = issue_date
-
-            # Return oldest issue date if found, otherwise fall back to project start date
+            oldest_date = self._get_oldest_issue_date()
             return oldest_date if oldest_date else self.start_date
 
-        # For other states, use project start date
-        return self.start_date
+        # For other states, use project start date or fallback to issue dates
+        return self.start_date if self.start_date else self._get_oldest_issue_date()
 
     def get_effective_end_date(self) -> Optional[date]:
         """

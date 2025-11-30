@@ -207,3 +207,35 @@ class TestEffectiveDates:
 
         effective_start = project.get_effective_start_date()
         assert effective_start == date(2024, 2, 15)
+
+    def test_planned_project_without_start_uses_issue_created_date(self):
+        """Test that planned projects without start date use issue createdAt"""
+        data = {
+            "id": "project-1",
+            "name": "Planned Project",
+            "state": "planned"
+            # No startDate
+        }
+
+        issues = [
+            {
+                "id": "issue-1",
+                "createdAt": "2024-03-10T10:00:00Z",
+                "state": {"type": "unstarted"}
+            },
+            {
+                "id": "issue-2",
+                "createdAt": "2024-03-05T10:00:00Z",  # Oldest
+                "state": {"type": "unstarted"}
+            }
+        ]
+
+        project = Project.from_linear_data(data, issues)
+
+        effective_start = project.get_effective_start_date()
+        effective_end = project.get_effective_end_date()
+
+        # Should use oldest issue createdAt
+        assert effective_start == date(2024, 3, 5)
+        # Should calculate end date from that
+        assert effective_end == date(2024, 3, 5) + timedelta(days=180)

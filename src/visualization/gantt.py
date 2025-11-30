@@ -39,17 +39,15 @@ def create_gantt_chart(projects: List[Dict],
         fig.update_layout(height=height)
         return fig
 
-    # Prepare data for Gantt chart
+    # Prepare data for Gantt chart using Plotly timeline
     tasks = []
     today = date.today()
 
     for project in projects:
         # Skip projects without dates
         if not project.get("start") or not project.get("end"):
+            print(f"Skipping project {project.get('name')} - missing dates")
             continue
-
-        start_date = project["start"]
-        end_date = project["end"]
 
         # Determine color
         if color_by == "status":
@@ -57,17 +55,18 @@ def create_gantt_chart(projects: List[Dict],
         else:
             color = PRIORITY_COLORS.get(project.get("priority", "medium"), PRIORITY_COLORS["medium"])
 
-        # Create task entry
+        # Create task entry for plotly timeline
         task = dict(
             Task=project["name"],
-            Start=start_date,
-            Finish=end_date,
+            Start=project["start"],
+            Finish=project["end"],
             Resource=project.get("status", "todo"),
             Description=f"{project.get('issue_count', 0)} issues ({project.get('completed_issues', 0)} completed)",
             Progress=project.get("progress", 0),
             Color=color
         )
         tasks.append(task)
+        print(f"Added task: {project['name']} from {project['start']} to {project['end']}")
 
     if not tasks:
         # No valid projects with dates
@@ -82,58 +81,64 @@ def create_gantt_chart(projects: List[Dict],
         fig.update_layout(height=height)
         return fig
 
-    # Create DataFrame
-    df = pd.DataFrame(tasks)
+    print(f"Creating Gantt chart with {len(tasks)} tasks")
 
-    # Create figure
+    # Create figure using timeline approach
     fig = go.Figure()
 
+    # Sort tasks by start date
+    tasks_sorted = sorted(tasks, key=lambda x: x['Start'])
+
     # Add bars for each project
-    for idx, task in df.iterrows():
-        # Parse dates
-        start = pd.to_datetime(task['Start'])
-        finish = pd.to_datetime(task['Finish'])
+    for task in tasks_sorted:
+        # Parse dates as strings (Plotly will handle them)
+        start_str = task['Start']
+        finish_str = task['Finish']
         progress = task.get('Progress', 0)
 
-        # Calculate completed portion
-        total_duration = (finish - start).total_seconds()
-        completed_duration = total_duration * (progress / 100)
-        completed_end = start + timedelta(seconds=completed_duration)
+        print(f"Adding bar for {task['Task']}: {start_str} to {finish_str}")
 
-        # Add background bar (total duration)
-        fig.add_trace(go.Bar(
-            name=task['Task'],
-            x=[finish - start],
-            y=[task['Task']],
-            orientation='h',
-            base=start,
-            marker=dict(
+        # Add background bar (full duration) using Scatter to ensure visibility
+        fig.add_trace(go.Scatter(
+            x=[start_str, finish_str],
+            y=[task['Task'], task['Task']],
+            mode='lines',
+            line=dict(
                 color=task['Color'],
-                opacity=0.3
+                width=20
             ),
+            opacity=0.3,
             showlegend=False,
             hovertemplate=f"<b>{task['Task']}</b><br>" +
-                         f"Start: {task['Start']}<br>" +
-                         f"End: {task['Finish']}<br>" +
+                         f"Start: {start_str}<br>" +
+                         f"End: {finish_str}<br>" +
                          f"Progress: {progress:.1f}%<br>" +
                          f"{task['Description']}<br>" +
-                         "<extra></extra>"
+                         "<extra></extra>",
+            name=task['Task']
         ))
 
-        # Add progress bar
+        # Add progress overlay if there's progress
         if show_progress and progress > 0:
-            fig.add_trace(go.Bar(
-                name=f"{task['Task']} Progress",
-                x=[completed_end - start],
-                y=[task['Task']],
-                orientation='h',
-                base=start,
-                marker=dict(
+            # Calculate progress end date
+            start_date = pd.to_datetime(start_str)
+            finish_date = pd.to_datetime(finish_str)
+            total_duration = (finish_date - start_date).total_seconds()
+            completed_duration = total_duration * (progress / 100)
+            completed_end = start_date + timedelta(seconds=completed_duration)
+
+            fig.add_trace(go.Scatter(
+                x=[start_str, completed_end.isoformat()],
+                y=[task['Task'], task['Task']],
+                mode='lines',
+                line=dict(
                     color=task['Color'],
-                    opacity=1.0
+                    width=20
                 ),
+                opacity=1.0,
                 showlegend=False,
-                hoverinfo='skip'
+                hoverinfo='skip',
+                name=f"{task['Task']} Progress"
             ))
 
     # Update layout

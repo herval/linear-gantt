@@ -31,18 +31,23 @@ st.set_page_config(
 def fetch_projects_with_issues(_client: LinearClient):
     """
     Fetch all projects and their issues from Linear
+    Only includes projects with both start and target dates defined
 
     Args:
         _client: Linear API client (underscore prefix tells Streamlit not to hash this)
 
     Returns:
-        List of Project objects
+        List of Project objects with valid dates
     """
     # Fetch all projects
     projects_data = _client.get_projects()
     projects = []
 
     for project_data in projects_data:
+        # Skip projects without both start and target dates
+        if not project_data.get("startDate") or not project_data.get("targetDate"):
+            continue
+
         # Fetch issues for each project to calculate progress
         try:
             issues_data = _client.get_project_issues(project_data["id"])

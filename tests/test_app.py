@@ -51,6 +51,10 @@ class TestApp:
         projects = []
 
         for project_data in projects_data:
+            # Skip projects without both start and target dates
+            if not project_data.get("startDate") or not project_data.get("targetDate"):
+                continue
+
             issues_data = mock_client.get_project_issues(project_data["id"])
             project = Project.from_linear_data(project_data, issues_data)
             projects.append(project)
@@ -74,11 +78,69 @@ class TestApp:
         projects = []
 
         for project_data in projects_data:
+            # Skip projects without both start and target dates
+            if not project_data.get("startDate") or not project_data.get("targetDate"):
+                continue
+
             issues_data = mock_client.get_project_issues(project_data["id"])
             project = Project.from_linear_data(project_data, issues_data)
             projects.append(project)
 
         assert len(projects) == 0
+
+    @patch('app.st')
+    def test_fetch_logic_filters_projects_without_dates(self, mock_st):
+        """Test that projects without start or target dates are filtered out"""
+        from src.models.project import Project
+
+        mock_client = Mock(spec=LinearClient)
+
+        # Mock projects with varying date availability
+        mock_client.get_projects.return_value = [
+            {
+                "id": "project-1",
+                "name": "Project with dates",
+                "state": "started",
+                "startDate": "2024-01-01",
+                "targetDate": "2024-12-31"
+            },
+            {
+                "id": "project-2",
+                "name": "Project without start date",
+                "state": "started",
+                "targetDate": "2024-12-31"
+            },
+            {
+                "id": "project-3",
+                "name": "Project without target date",
+                "state": "started",
+                "startDate": "2024-01-01"
+            },
+            {
+                "id": "project-4",
+                "name": "Project without any dates",
+                "state": "started"
+            }
+        ]
+
+        mock_client.get_project_issues.return_value = []
+
+        # Test the filtering logic
+        projects_data = mock_client.get_projects()
+        projects = []
+
+        for project_data in projects_data:
+            # Skip projects without both start and target dates
+            if not project_data.get("startDate") or not project_data.get("targetDate"):
+                continue
+
+            issues_data = mock_client.get_project_issues(project_data["id"])
+            project = Project.from_linear_data(project_data, issues_data)
+            projects.append(project)
+
+        # Only project-1 should be included
+        assert len(projects) == 1
+        assert projects[0].name == "Project with dates"
 
     @patch('app.st')
     def test_fetch_logic_error_handling(self, mock_st):
@@ -87,12 +149,14 @@ class TestApp:
 
         mock_client = Mock(spec=LinearClient)
 
-        # Mock project that exists
+        # Mock project that exists with valid dates
         mock_client.get_projects.return_value = [
             {
                 "id": "project-1",
                 "name": "Test Project",
-                "state": "started"
+                "state": "started",
+                "startDate": "2024-01-01",
+                "targetDate": "2024-12-31"
             }
         ]
 
@@ -104,6 +168,10 @@ class TestApp:
         projects = []
 
         for project_data in projects_data:
+            # Skip projects without both start and target dates
+            if not project_data.get("startDate") or not project_data.get("targetDate"):
+                continue
+
             try:
                 issues_data = mock_client.get_project_issues(project_data["id"])
                 project = Project.from_linear_data(project_data, issues_data)

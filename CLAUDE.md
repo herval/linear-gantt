@@ -1,0 +1,5 @@
+- Always test your changes to make sure everything is working
+- Add good code coverage and reuse code
+- Create commits once you hit stable milestones and update your TODO list
+- DO NOT affect any files outside this working directory and subfolders
+- You must write and run tests for every change you make

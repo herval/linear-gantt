@@ -1,0 +1,245 @@
+"""
+Gantt chart visualization using Plotly
+"""
+
+import plotly.figure_factory as ff
+import plotly.graph_objects as go
+import pandas as pd
+from datetime import datetime, date, timedelta
+from typing import List, Dict, Optional
+from config.settings import STATUS_COLORS, PRIORITY_COLORS
+
+
+def create_gantt_chart(projects: List[Dict],
+                       color_by: str = "status",
+                       show_progress: bool = True,
+                       height: int = 600) -> go.Figure:
+    """
+    Create a Gantt chart from project data
+
+    Args:
+        projects: List of project dictionaries (from Project.to_gantt_dict())
+        color_by: Color coding method ("status" or "priority")
+        show_progress: Whether to show progress bars
+        height: Chart height in pixels
+
+    Returns:
+        Plotly Figure object
+    """
+    if not projects:
+        # Return empty chart with message
+        fig = go.Figure()
+        fig.add_annotation(
+            text="No projects to display",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5,
+            showarrow=False,
+            font=dict(size=20)
+        )
+        fig.update_layout(height=height)
+        return fig
+
+    # Prepare data for Gantt chart
+    tasks = []
+    today = date.today()
+
+    for project in projects:
+        # Skip projects without dates
+        if not project.get("start") or not project.get("end"):
+            continue
+
+        start_date = project["start"]
+        end_date = project["end"]
+
+        # Determine color
+        if color_by == "status":
+            color = STATUS_COLORS.get(project.get("status", "todo"), STATUS_COLORS["todo"])
+        else:
+            color = PRIORITY_COLORS.get(project.get("priority", "medium"), PRIORITY_COLORS["medium"])
+
+        # Create task entry
+        task = dict(
+            Task=project["name"],
+            Start=start_date,
+            Finish=end_date,
+            Resource=project.get("status", "todo"),
+            Description=f"{project.get('issue_count', 0)} issues ({project.get('completed_issues', 0)} completed)",
+            Progress=project.get("progress", 0),
+            Color=color
+        )
+        tasks.append(task)
+
+    if not tasks:
+        # No valid projects with dates
+        fig = go.Figure()
+        fig.add_annotation(
+            text="No projects with valid dates to display",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5,
+            showarrow=False,
+            font=dict(size=20)
+        )
+        fig.update_layout(height=height)
+        return fig
+
+    # Create DataFrame
+    df = pd.DataFrame(tasks)
+
+    # Create figure
+    fig = go.Figure()
+
+    # Add bars for each project
+    for idx, task in df.iterrows():
+        # Parse dates
+        start = pd.to_datetime(task['Start'])
+        finish = pd.to_datetime(task['Finish'])
+        progress = task.get('Progress', 0)
+
+        # Calculate completed portion
+        total_duration = (finish - start).total_seconds()
+        completed_duration = total_duration * (progress / 100)
+        completed_end = start + timedelta(seconds=completed_duration)
+
+        # Add background bar (total duration)
+        fig.add_trace(go.Bar(
+            name=task['Task'],
+            x=[finish - start],
+            y=[task['Task']],
+            orientation='h',
+            base=start,
+            marker=dict(
+                color=task['Color'],
+                opacity=0.3
+            ),
+            showlegend=False,
+            hovertemplate=f"<b>{task['Task']}</b><br>" +
+                         f"Start: {task['Start']}<br>" +
+                         f"End: {task['Finish']}<br>" +
+                         f"Progress: {progress:.1f}%<br>" +
+                         f"{task['Description']}<br>" +
+                         "<extra></extra>"
+        ))
+
+        # Add progress bar
+        if show_progress and progress > 0:
+            fig.add_trace(go.Bar(
+                name=f"{task['Task']} Progress",
+                x=[completed_end - start],
+                y=[task['Task']],
+                orientation='h',
+                base=start,
+                marker=dict(
+                    color=task['Color'],
+                    opacity=1.0
+                ),
+                showlegend=False,
+                hoverinfo='skip'
+            ))
+
+    # Update layout
+    fig.update_layout(
+        title="Project Timeline",
+        xaxis=dict(
+            title="Timeline",
+            type='date',
+            showgrid=True,
+            gridcolor='lightgray'
+        ),
+        yaxis=dict(
+            title="Projects",
+            autorange="reversed",  # Show first project at top
+        ),
+        barmode='overlay',
+        height=height,
+        hovermode='closest',
+        plot_bgcolor='white',
+        margin=dict(l=150, r=50, t=80, b=50)
+    )
+
+    # Add today line as a shape
+    today_str = today.isoformat()
+    fig.add_shape(
+        type="line",
+        x0=today_str,
+        x1=today_str,
+        y0=0,
+        y1=1,
+        yref="paper",
+        line=dict(color="red", width=2, dash="dash")
+    )
+
+    # Add today annotation
+    fig.add_annotation(
+        x=today_str,
+        y=1,
+        yref="paper",
+        text="Today",
+        showarrow=False,
+        yshift=10
+    )
+
+    return fig
+
+
+def filter_projects_by_date_range(projects: List[Dict],
+                                  start_date: Optional[date] = None,
+                                  end_date: Optional[date] = None) -> List[Dict]:
+    """
+    Filter projects by date range
+
+    Args:
+        projects: List of project dictionaries
+        start_date: Filter start date
+        end_date: Filter end date
+
+    Returns:
+        Filtered list of projects
+    """
+    if not start_date and not end_date:
+        return projects
+
+    filtered = []
+    for project in projects:
+        project_start = project.get("start")
+        project_end = project.get("end")
+
+        if not project_start or not project_end:
+            continue
+
+        # Convert string dates to date objects if needed
+        if isinstance(project_start, str):
+            project_start = datetime.fromisoformat(project_start).date()
+        if isinstance(project_end, str):
+            project_end = datetime.fromisoformat(project_end).date()
+
+        # Check if project overlaps with date range
+        if start_date and project_end < start_date:
+            continue
+        if end_date and project_start > end_date:
+            continue
+
+        filtered.append(project)
+
+    return filtered
+
+
+def group_projects(projects: List[Dict], group_by: str) -> Dict[str, List[Dict]]:
+    """
+    Group projects by a specific field
+
+    Args:
+        projects: List of project dictionaries
+        group_by: Field to group by (status, lead, etc.)
+
+    Returns:
+        Dictionary of grouped projects
+    """
+    groups = {}
+
+    for project in projects:
+        key = project.get(group_by, "Unknown")
+        if key not in groups:
+            groups[key] = []
+        groups[key].append(project)
+
+    return groups

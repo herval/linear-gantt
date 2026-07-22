@@ -22,8 +22,8 @@ This document outlines the development practices and methodology for maintaining
 3. Write failing tests first (TDD approach when possible)
 
 **After writing code:**
-1. Run relevant test suite: `python -m pytest tests/test_<module>.py -v`
-2. Run ALL tests before committing: `python -m pytest tests/ -v`
+1. Run relevant test suite: `uv run pytest tests/test_<module>.py -v`
+2. Run ALL tests before committing: `uv run pytest tests/ -v`
 3. Ensure ALL tests pass (no exceptions)
 4. Add new tests for new functionality
 
@@ -98,13 +98,13 @@ TodoWrite({
 **Run tests progressively:**
 ```bash
 # Test the specific module you changed
-python -m pytest tests/test_models.py -v
+uv run pytest tests/test_models.py -v
 
 # Run all tests before committing
-python -m pytest tests/ -v
+uv run pytest tests/ -v
 
 # Check test coverage (optional but encouraged)
-python -m pytest tests/ --cov=src --cov-report=term-missing
+uv run pytest tests/ --cov=src --cov-report=term-missing
 ```
 
 **What to test:**
@@ -298,7 +298,7 @@ When adding a new feature, follow this checklist:
 - [ ] Write unit tests for new logic
 - [ ] Write integration tests if needed
 - [ ] Test edge cases and error conditions
-- [ ] Run all tests: `python -m pytest tests/ -v`
+- [ ] Run all tests: `uv run pytest tests/ -v`
 - [ ] Verify all tests pass
 
 ### Documentation

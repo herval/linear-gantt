@@ -1,0 +1,28 @@
+[project]
+name = "linear-gantt-visualizer"
+version = "0.1.0"
+description = "Streamlit Gantt chart visualizer for Linear projects and issues"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "streamlit>=1.28.0",
+    "plotly>=5.17.0",
+    "pandas>=2.0.0",
+    "requests>=2.31.0",
+    "python-dotenv>=1.0.0",
+    "gql>=3.4.0",
+    "streamlit-aggrid",
+    "openpyxl",
+    "matplotlib",
+    "Pillow",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.11.1",
+]
+
+[tool.uv]
+package = false

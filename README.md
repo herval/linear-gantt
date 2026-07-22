@@ -19,22 +19,30 @@ A Streamlit-based web application that integrates with the Linear API to fetch p
 
 ### Prerequisites
 
-- Python 3.8 or higher
+- [uv](https://docs.astral.sh/uv/) (`brew install uv` or `curl -LsSf https://astral.sh/uv/install.sh | sh`)
+- [just](https://github.com/casey/just) (optional, for the task runner — `brew install just`)
 - Linear API key ([Get one here](https://linear.app/settings/api))
+
+uv manages the Python toolchain and virtual environment for you; the pinned Python version lives in `.python-version`.
 
 ### Installation
 
 #### Option 1: Quick Start (Recommended)
 
-Just run the setup script:
+With `just`:
+```bash
+just run
+```
+
+Or run the setup script directly:
 ```bash
 ./run.sh
 ```
 
-This will automatically:
-- Create a virtual environment
-- Install all dependencies
-- Set up your `.env` file
+Either path will automatically:
+- Provision the correct Python version and virtual environment (`.venv`)
+- Install all dependencies from `pyproject.toml` / `uv.lock`
+- Set up your `.env` file (via `run.sh`)
 - Launch the application
 
 #### Option 2: Manual Setup
@@ -45,23 +53,17 @@ git clone <repository-url>
 cd linear-gantt
 ```
 
-2. Create a virtual environment:
+2. Install dependencies (creates `.venv` automatically):
 ```bash
-python3 -m venv venv
-source venv/bin/activate
+uv sync
 ```
 
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-4. Configure environment variables:
+3. Configure environment variables:
 ```bash
 cp .env.example .env
 ```
 
-5. Edit `.env` and add your Linear API key:
+4. Edit `.env` and add your Linear API key:
 ```
 LINEAR_API_KEY=your_api_key_here
 CACHE_TTL=3600
@@ -69,25 +71,30 @@ CACHE_TTL=3600
 
 ### Running the Application
 
-#### Using the run script:
 ```bash
-./run.sh
-```
-
-#### Manual start:
-```bash
-source venv/bin/activate
-streamlit run app.py
+just run              # via the task runner
+# or
+uv run streamlit run app.py
 ```
 
 The application will open in your default browser at `http://localhost:8501`
+
+### Managing Dependencies
+
+```bash
+uv add <package>              # add a runtime dependency
+uv add --dev <package>        # add a dev/test dependency
+uv sync                       # install from the lockfile
+```
 
 ## Project Structure
 
 ```
 linear-gantt/
 ├── app.py                      # Main Streamlit application
-├── requirements.txt            # Python dependencies
+├── pyproject.toml             # Project metadata & dependencies (uv)
+├── uv.lock                    # Pinned dependency lockfile
+├── Justfile                   # Task runner recipes (just run/test/…)
 ├── .env.example               # Environment variable template
 ├── config/
 │   └── settings.py            # Configuration management
@@ -159,8 +166,9 @@ All Phase 1 features have been successfully implemented:
 ### Running Tests
 
 ```bash
-source venv/bin/activate
-pytest tests/ -v
+just test
+# or
+uv run pytest
 ```
 
 All 42 tests passing ✅
